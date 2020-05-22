@@ -1,0 +1,59 @@
+Roster-Solver
+
+The Roster::Solver module provides methods for generating a duty
+roster given a list of dates, jobs to be done, and workers, subject
+to the following constraints:
+
+    1. Each worker's eligibility to do each job.
+    2. Each worker's availability on each date.
+    3. The number of workers needed for each job.
+
+For all jobs, the solver will try to divide the workload evenly
+among the eligible workers, and space out their duties as much
+as possible.
+
+In addition, you can identify some jobs as "exclusive," meaning the
+worker will do no other jobs on the same date as an exclusive job.
+The solver will try to do that anyway, but for exclusive jobs it's
+a requirement for a roster to be valid.
+
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc Roster::Solver
+
+You can also look for information at:
+
+    RT, CPAN's request tracker (report bugs here)
+        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Roster-Solver
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/Roster-Solver
+
+    CPAN Ratings
+        https://cpanratings.perl.org/d/Roster-Solver
+
+    Search CPAN
+        https://metacpan.org/release/Roster-Solver
+
+
+LICENSE AND COPYRIGHT
+
+This software is Copyright (c) 2020 by Len Budney.
+
+This is free software, licensed under:
+
+  The GNU General Public License, Version 3, June 2007
+

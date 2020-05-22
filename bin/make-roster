@@ -1,0 +1,149 @@
+#!/usr/bin/env perl -w
+# Generate a duty roster given dates, jobs, and workers.
+
+use strict;
+use warnings;
+
+use Roster::Solver::App;
+
+our $VERSION = '0.01';
+
+# Run the app
+my $app = Roster::Solver::App->new;
+$app->run(@ARGV);
+
+__END__
+=head1 NAME
+
+make-roster
+
+=head1 SYNOPSIS
+
+  make-roster [options]
+
+=head1 DESCRIPTION  
+
+C<make-roster> loads a list of people, a list of tasks, a list of
+dates, and some constraints, and then makes a roster that meets
+the constraints, divides the work as evenly as possible, and spaces
+out everyone's duties as much as it can.
+
+=head1 OPTIONS
+
+The following command-line options are supported:
+
+=head2 GENERAL OPTIONS
+
+=over
+
+=item --help | -h
+
+Print a usage message and exit.
+
+=item --manpage | -H
+
+Print this man page and exit.
+
+=item --rcfile FILENAME
+
+Specify the config file to read or write. Settings in that file
+take precedence over app defaults, but are overridden by command-line
+options.
+
+=item --rcfile-format FORMAT
+
+Specify the format of the config file. Valid values are: INI, XML,
+JSON, YAML, PERL. The value is not case sensitive.
+
+=item --verbose | -v
+
+Request verbose output. Higher levels of verbosity can be requested
+by repeating the option or using an integer, as C<--verbose=N> or
+C<-vvv>.
+
+=item -version | -V
+
+Print the version and exit.
+
+=item --write-rcfile
+
+Take all the command-line options, config file settings, and app
+defaults, and write the result into the config file specified by
+C<--rcfile> (or the default config file if the C<--rcfile> option
+isn't specified).
+
+=back
+
+=head2 ROSTER OPTIONS
+
+=over
+
+=item --dates DATE1,DATE2,...
+
+Specify dates to be included in the roster. Currently there's
+no clever way to specify "every Sunday between X and Y dates,"
+or anything like that. Instead a list must be supplied.
+
+=item --elgibility NAME1=101101...,NAME2=011010...,...
+
+This option specifies who is eligible for which jobs, expressed
+as a bitmask of zeros and ones. The bits are applied to jobs in
+the same order as they were specified in the C<--jobs> option.
+So if workers A, B, and C are each specialists in jobs x, y, and
+z, respectively, you would specify that this way:
+
+  make-roster --jobs x,y,z --workers A,B,C \
+    --eligibility A=100,B=010,C=001
+
+If this option isn't specified, it's assumed that everyone is
+eligible for every job. If a worker's name isn't mentioned in
+this option, it's assumed that they're eligible for every job.
+
+As a shorthand, you can make the bitmask shorter than the list
+of jobs, and it will be assumed that the worker is eligible for
+the rest of the jobs.
+
+=item --jobs JOB1,JOB2,...
+
+Specify jobs to be included in the roster. This option can be
+used multiple times. The alias C<--job> is also accepted.
+
+=item --job-counts N1,N2,N3,...
+
+Specify the number of people needed for each job. This is a list of
+integers, in the same order as the jobs listed in the C<--jobs> option.
+If this option is not specified, then 1 is assumed for every job.
+
+The alias C<--job-count> is also accepted.
+
+=item --workers NAME1,NAME2,...
+
+Specify workers to add to the roster. This option can be used
+multiple times. The option C<--worker> is accepted as an alias
+for C<--workers>.
+
+=back
+
+=head1 SETUP
+
+This script permits the entire problem to be specified on the command
+line, but for anything larger than a toy problem that's not practical.
+The trick is that the script can also read those options from a
+config file, which can be as complex as desired.
+
+One simple way to setup a problem is to create a toy problem and write
+it back to a config file, like so:
+
+   make-roster --rcfile=MyRoster.yml --rcfile-format=yaml --write-rcfile \
+      --workers=a,b,c --jobs=x,y,z --job-counts=2,2 --dates=1/1,1/8,1/15
+
+You will then have a file named C<MyRoster.yml> that specifies this
+simple problem, which you can easily edit to fill in the complete
+problem to be solved.
+
+=head1 LICENSE
+
+Copyright (C) 2007-2008 Len Budney
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GPL3.
