@@ -5,18 +5,21 @@ WriteMakefile
 (
   'VERSION_FROM' => 'lib/Roster/Solver.pm',
   'PL_FILES' => {},
-  'NAME' => 'Roster::Solver',
+  'INSTALLDIRS' => 'site',
   'PREREQ_PM' => {
-                   'Test::More' => 0,
-                   'strict' => 0,
                    'Carp' => 0,
                    'CLI::Startup' => '0.25',
+                   'Data::Dumper' => 0,
+                   'Test::More' => 0,
                    'warnings' => 0,
+                   'Clone' => 0,
+                   'strict' => 0,
+                   'Test::Exception' => 0,
                    'Class::Std' => 0
                  },
+  'NAME' => 'Roster::Solver',
   'EXE_FILES' => [
                    'bin/make-roster'
-                 ],
-  'INSTALLDIRS' => 'site'
+                 ]
 )
 ;

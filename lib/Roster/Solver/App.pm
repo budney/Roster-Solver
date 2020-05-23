@@ -45,6 +45,8 @@ sub _process_options : PRIVATE
     my $app = CLI::Startup->new( {
             options => {
                 'dates=s@' => 'Dates to include in the roster',
+                'exclusive-jobs=i@' =>
+                    'Flags indicating jobs that fully occupy a worker',
                 'job-counts|job-count=i@' =>
                     'Number of people needed for each job',
                 'jobs|job=s@'       => 'List of jobs to be done',

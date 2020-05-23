@@ -84,6 +84,13 @@ Specify dates to be included in the roster. Currently there's
 no clever way to specify "every Sunday between X and Y dates,"
 or anything like that. Instead a list must be supplied.
 
+=item --exclusive-jobs 0,1,0...
+
+This option gives a list of flags (i.e., 0 or 1) indicating
+whether the person holding the given job can also hold any
+other jobs on the same date. The flags are applied to jobs
+in the order specified in the C<--jobs> option.
+
 =item --elgibility NAME1=101101...,NAME2=011010...,...
 
 This option specifies who is eligible for which jobs, expressed

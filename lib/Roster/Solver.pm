@@ -4,10 +4,88 @@ use 5.006;
 use strict;
 use warnings;
 
+use Carp 'croak';
+use Clone 'clone';
+use Class::Std;
+
 our $VERSION = '0.01';
 
-sub function1
+# Attributes
+my ( %dates_of, %jobs_of, %workers_of, ) : ATTRS;
+
+# Accessors:
+
+# Handle array-like attributes by copying judiciously,
+# so nobody is tempted to modify our innards.
+sub _set_array_attr : PRIVATE
 {
+    my ( $self, $attr, @args ) = @_;
+
+    if ( @args == 1 && ref $args[0] eq 'ARRAY' )
+    {
+        # It's a reference: clone it
+        $attr->{ ident $self} = clone( $args[0] );
+    }
+    elsif ( @args > 0 )
+    {
+        # It's an array: store it
+        $attr->{ ident $self} = [@args];
+    }
+    else
+    {
+        # This shouldn't happen
+        croak 'Fatal: setting attribute without array or arrayref';
+    }
+
+    return;
+}
+
+# Set dates. If handed a reference, copy it so
+# ours can't be tampered with.
+sub set_dates
+{
+    my ( $self, @args ) = @_;
+    return $self->_set_array_attr( \%dates_of, @args );
+}
+
+# Return dates, but copy the list so ours can't
+# be tampered with.
+sub get_dates
+{
+    my ($self) = @_;
+    return clone( $dates_of{ ident $self } );
+}
+
+# Set jobs. If handed a reference, copy it so
+# ours can't be tampered with.
+sub set_jobs
+{
+    my ( $self, @args ) = @_;
+    return $self->_set_array_attr( \%jobs_of, @args );
+}
+
+# Return jobs, but copy the list so ours can't
+# be tampered with.
+sub get_jobs
+{
+    my ($self) = @_;
+    return clone( $jobs_of{ ident $self } );
+}
+
+# Set workers. If handed a reference, copy it so
+# ours can't be tampered with.
+sub set_workers
+{
+    my ( $self, @args ) = @_;
+    return $self->_set_array_attr( \%workers_of, @args );
+}
+
+# Return workers, but copy the list so ours can't
+# be tampered with.
+sub get_workers
+{
+    my ($self) = @_;
+    return clone( $workers_of{ ident $self } );
 }
 
 1;    # End of Roster::Solver
@@ -32,10 +110,18 @@ Perhaps a little code snippet.
     my $foo = Roster::Solver->new();
     ...
 
-=head1 EXPORT
+=head1 ATTRIBUTES
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+=over
+
+=item dates
+
+  $solver->set_dates(qw{ 1/1 1/8 1/15 1/22 1/29 2/5 ... });
+  @dates = $solver->get_dates();
+
+The dates for which we wish to schedule workers.
+
+=back
 
 =head1 SUBROUTINES/METHODS
 

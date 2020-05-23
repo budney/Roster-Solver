@@ -43,11 +43,15 @@ my $builder = $class->new(
         'perl'          => '5.10.0',
     },
     build_requires => {
-        'Test::More'   => '0',
+        'Data::Dumper'      => 0,
+        'Test::Exception'   => 0,
+        'Test::More'   => 0,
     },
     test_requires => {
-        'Test::More'        => '0',
-        'Test::Requires'    => '0',
+        'Data::Dumper'      => 0,
+        'Test::Exception'   => 0,
+        'Test::More'        => 0,
+        'Test::Requires'    => 0,
         'perl'              => '5.10.0',
     },
     requires => {
@@ -57,6 +61,7 @@ my $builder = $class->new(
         'CLI::Startup'  => '0.25',
         'Class::Std'    => 0,
         'Carp'          => 0,
+        'Clone'         => 0,
     },
     add_to_cleanup     => [qw{
         Roster-Solver-*
