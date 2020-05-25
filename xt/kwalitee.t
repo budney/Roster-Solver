@@ -10,4 +10,5 @@ plan( skip_all => 'Test::Kwalitee not installed; skipping' ) if $@;
 
 # Test::Kwalitee has a bug: the following two tests fail even for the
 # distribution of Test::Kwality itself!
-Test::Kwalitee->import( tests => [ qw/ -has_test_pod -has_test_pod_coverage -has_tests /] );
+Test::Kwalitee->import(
+    tests => [qw/ -has_test_pod -has_test_pod_coverage -has_tests /] );

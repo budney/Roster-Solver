@@ -8,8 +8,9 @@ use English qw(-no_match_vars);
 
 eval { require Test::PerlTidy; };
 
-if ( $EVAL_ERROR ) {
-   plan( skip_all => 'Test::PerlTidy required to test code style' );
+if ($EVAL_ERROR)
+{
+    plan( skip_all => 'Test::PerlTidy required to test code style' );
 }
 
 my $rcfile = File::Spec->catfile( 'xt', 'perltidyrc' );

@@ -8,8 +8,9 @@ use English qw(-no_match_vars);
 
 eval { require Test::Perl::Critic; };
 
-if ( $EVAL_ERROR ) {
-   plan( skip_all => 'Test::Perl::Critic required to criticise code' );
+if ($EVAL_ERROR)
+{
+    plan( skip_all => 'Test::Perl::Critic required to criticise code' );
 }
 
 my $rcfile = File::Spec->catfile( 'xt', 'perlcriticrc' );

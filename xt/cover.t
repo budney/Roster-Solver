@@ -9,4 +9,4 @@ plan skip_all => "Test::Strict not installed" if $@;
 all_cover_ok( 80, 't/' );
 
 # Clean up
-rmtree("cover_db");
+#rmtree("cover_db");

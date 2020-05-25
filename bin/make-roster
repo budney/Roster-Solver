@@ -84,12 +84,20 @@ Specify dates to be included in the roster. Currently there's
 no clever way to specify "every Sunday between X and Y dates,"
 or anything like that. Instead a list must be supplied.
 
+=item --days-off NAME1=01001...,NAME2=00011010...,...
+
+This option specifies who is unavailable on which dates, specified
+as a bitmask of zeros and ones. The bits are applied to the dates
+in the order specified using the C<--dates> command-line option.
+
 =item --exclusive-jobs 0,1,0...
 
-This option gives a list of flags (i.e., 0 or 1) indicating
-whether the person holding the given job can also hold any
-other jobs on the same date. The flags are applied to jobs
-in the order specified in the C<--jobs> option.
+This option gives a list of flags (i.e., 0 or 1) indicating whether
+the person holding the given job can also hold any other jobs on
+the same date. The flags are applied to jobs in the order specified
+in the C<--jobs> option. If a worker isn't mentioned here, or if
+there are fewer bits in the bitmask than there are dates, it will
+be assumed that the worker is available.
 
 =item --elgibility NAME1=101101...,NAME2=011010...,...
 
@@ -113,7 +121,7 @@ the rest of the jobs.
 =item --jobs JOB1,JOB2,...
 
 Specify jobs to be included in the roster. This option can be
-used multiple times. The alias C<--job> is also accepted.
+used multiple times.
 
 =item --job-counts N1,N2,N3,...
 
@@ -121,13 +129,10 @@ Specify the number of people needed for each job. This is a list of
 integers, in the same order as the jobs listed in the C<--jobs> option.
 If this option is not specified, then 1 is assumed for every job.
 
-The alias C<--job-count> is also accepted.
-
 =item --workers NAME1,NAME2,...
 
 Specify workers to add to the roster. This option can be used
-multiple times. The option C<--worker> is accepted as an alias
-for C<--workers>.
+multiple times.
 
 =back
 

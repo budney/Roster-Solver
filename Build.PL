@@ -45,7 +45,8 @@ my $builder = $class->new(
     build_requires => {
         'Data::Dumper'      => 0,
         'Test::Exception'   => 0,
-        'Test::More'   => 0,
+        'Test::More'        => 0,
+        'Test::Trap'        => 0,
     },
     test_requires => {
         'Data::Dumper'      => 0,
@@ -55,6 +56,7 @@ my $builder = $class->new(
         'perl'              => '5.10.0',
     },
     requires => {
+        'ntheory'       => 0,
         'perl'          => '5.10.0',
         'strict'        => 0,
         'warnings'      => 0,
@@ -62,6 +64,7 @@ my $builder = $class->new(
         'Class::Std'    => 0,
         'Carp'          => 0,
         'Clone'         => 0,
+        'Readonly'      => 0,
     },
     add_to_cleanup     => [qw{
         Roster-Solver-*
