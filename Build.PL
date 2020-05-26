@@ -64,6 +64,7 @@ my $builder = $class->new(
         'Class::Std'    => 0,
         'Carp'          => 0,
         'Clone'         => 0,
+        'Math::Round'   => 0,
         'Readonly'      => 0,
     },
     add_to_cleanup     => [qw{

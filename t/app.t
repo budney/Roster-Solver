@@ -112,4 +112,35 @@ my $app = Roster::Solver::App->new;
     is $trap->exit, 0, "Exit code was 0";
 }
 
+# Set up a scenario with only one valid schedule, and confirm
+# that the _random_schedule() method correctly generates it.
+{
+    my $app = Roster::Solver::App->new;
+    my ( $solver, $schedule, $score );
+
+    package Roster::Solver::App;
+    use Test::Exception;
+
+    lives_ok { $app->_process_options(qw{ --jobs j --workers w --dates d }) }
+    '_process_options() lives for one worker, job, and date';
+
+    lives_ok { $main::solver = $app->_setup_solver() }
+    '_setup_solver() lives';
+
+    package Roster::Solver;
+    use Test::Exception;
+    use Test::More;
+
+    lives_ok { $main::schedule = $main::solver->_generate_schedule() }
+    '_generate_schedule() lives';
+
+    is_deeply $main::schedule, { d => { j => ['w'] } }, "Schedule is correct";
+
+    lives_ok {
+        $main::score = $main::solver->_score_schedule($main::schedule)
+    }
+    '_score_schedule() lives';
+    is $main::score, 0, 'Schedule scored 0 complaints';
+}
+
 done_testing();

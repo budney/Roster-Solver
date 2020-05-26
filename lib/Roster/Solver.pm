@@ -7,15 +7,24 @@ use warnings;
 use Carp 'croak';
 use Clone 'clone';
 use Class::Std;
+use Math::Round;
 use ntheory ':rand';
 use Readonly;
 
 our $VERSION = '0.01';
 
-Readonly my $SUB => 3;    # Returned from caller()
+Readonly my $SUB       => 3;               # Returned from caller()
+Readonly my $HARD_COST => 1_000_000_000;
+Readonly my $FIRM_COST => 1_000_000;
+Readonly my $SOFT_COST => 1_000;
 
 #<<< Leave this alone, perltidy
-# Attributes
+# Solver Setting Attributes
+my %hard_cost_of :ATTR( :name<hard_cost> :default<undef> );
+my %firm_cost_of :ATTR( :name<firm_cost> :default<undef> );
+my %soft_cost_of :ATTR( :name<soft_cost> :default<undef> );
+
+# Problem Attributes
 my (
     %dates_of,
     %jobs_of,
@@ -24,8 +33,32 @@ my (
     %workers_of,
     %eligibility_of,
     %availability_of,
+    %benchmarks_of,
 ) : ATTRS;
 #>>>
+
+# Constructor:
+sub START
+{
+    my ( $self, $id, $args_ref ) = @_;
+
+    # Defaults defined by compile-time constants
+    # have to be set in the constructor.
+    if ( !defined $hard_cost_of{$id} )
+    {
+        $hard_cost_of{$id} = $HARD_COST;
+    }
+    if ( !defined $firm_cost_of{$id} )
+    {
+        $firm_cost_of{$id} = $FIRM_COST;
+    }
+    if ( !defined $soft_cost_of{$id} )
+    {
+        $soft_cost_of{$id} = $SOFT_COST;
+    }
+
+    return;
+}
 
 # Accessors:
 
@@ -80,6 +113,50 @@ sub get_availability : PRIVATE
 {
     my ($self) = @_;
     return $availability_of{ ident $self };
+}
+
+# Get benchmarks. This is a read-only attribute,
+# because it's computed from the problem parameters.
+sub get_benchmarks
+{
+    my ($self) = @_;
+
+    my $eligible = $self->get_eligibility();
+    my @workers  = @{ $self->get_workers };
+
+    # If they're cached, return 'em.
+    if ( defined $benchmarks_of{ ident $self } )
+    {
+        return clone( $benchmarks_of{ ident $self } );
+    }
+
+    # Otherwise, compute 'em.
+    my $benchmarks = {};
+
+    # First, for each job, compute the average number of
+    # times each eligible worker should have to do it,
+    # and the number of dates between turns for that worker.
+    for my $job ( @{ $self->get_jobs() } )
+    {
+        my @dates    = @{ $self->get_dates() };
+        my @eligible = grep { $eligible->{jobs}{$job}{$_} } @workers;
+
+        # Note: if the number of workers doesn't divide evenly into
+        # the number of dates, then the remainder might be the very
+        # lowest value we can get for the satisfactoriness of a
+        # schedule, because the people who get an extra turn might
+        # be disgruntled.
+        $benchmarks->{turns}{$job}
+            = round( scalar(@dates) / scalar(@eligible) );
+        $benchmarks->{break}{$job}  = scalar(@eligible);
+        $benchmarks->{people}{$job} = { map { ( $_ => 1 ) } @eligible };
+    }
+
+    # Save the benchmarks
+    $benchmarks_of{ ident $self} = $benchmarks;
+
+    # Recurse, which this time will return a clone.
+    return $self->get_benchmarks();
 }
 
 # Set dates. If handed a reference, copy it so
@@ -210,6 +287,7 @@ sub solve
 
     # Step 1: generate a random schedule
     my $schedule = $self->_generate_schedule();
+    my $score    = $self->_score_schedule($schedule);
 
     return;
 }
@@ -273,6 +351,132 @@ sub _generate_schedule : PRIVATE
     return $schedule;
 }
 
+# Review a schedule, and score it based on the hard, firm,
+# and soft constraints it violates.
+sub _score_schedule : PRIVATE
+{
+    my ( $self, $schedule ) = @_;
+
+    my $benchmarks   = $self->get_benchmarks();
+    my $available    = $self->get_availability();
+    my $eligible     = $self->get_eligibility();
+    my $is_exclusive = $self->get_exclusivity();
+
+    my $complaints = { hard => 0, firm => 0, soft => 0 };
+    my @dates      = @{ $self->get_dates() };
+    my $turns      = {};
+
+    # Populate the $turns hash with a list of jobs and people.
+    for my $job ( @{ $self->get_jobs() } )
+    {
+        for my $worker ( keys %{ $benchmarks->{people}{$job} } )
+        {
+            $turns->{$job}{$worker} = [];
+        }
+    }
+
+    # Step through the schedule, counting up complaints.
+    # In the process, build a flattened table of turns taken
+    # by each worker, which we can use to find more complaints.
+    for my $i ( 0 .. $#dates )
+    {
+        my $date   = $dates[$i];
+        my %roster = %{ $schedule->{$date} };
+
+        my $assignments = {};
+
+        # Step through the jobs, checking that each worker
+        # was qualified and available.
+        for my $job ( keys %roster )
+        {
+            # If there's nobody assigned, that's
+            # a hard complaint.
+            if ( @{ $roster{$job} } == 0 )
+            {
+                $complaints->{hard}++;
+            }
+
+            for my $worker ( @{ $roster{$job} } )
+            {
+                # Record the turns taken
+                push @{ $turns->{$job}{$worker} }, $i;
+
+                # Build a reverse lookup of what they did today
+                push @{ $assignments->{$worker} }, $job;
+
+                # If the assignee isn't qualified, that's a
+                # hard complaint.
+                if ( !$eligible->{jobs}{$job}{$worker} )
+                {
+                    $complaints->{hard}++;
+                }
+
+                # If this is the assignee's day off, that's
+                # a hard complaint
+                if ( !$available->{dates}{$date}{$worker} )
+                {
+                    $complaints->{hard}++;
+                }
+            }
+        }
+
+        my ( $exclusive, $nonexclusive ) = 0, 0;
+
+        # Now review the assignments for this date, looking
+        # for double-assignments.
+        for my $worker ( keys %{$assignments} )
+        {
+            next if @{ $assignments->{$worker} } == 1;
+
+            # Now count up how many exclusive vs non-exclusive
+            # jobs were involved in this double-booking.
+            for my $job ( @{ $assignments->{$worker} } )
+            {
+                if ( $is_exclusive->{$job} )
+                {
+                    $exclusive++;
+                }
+                else
+                {
+                    $nonexclusive++;
+                }
+            }
+
+            # If we're double-booked, then every exclusive job merits
+            # a firm complaint. In addition, we add a soft complaint
+            # for every nonexclusive job after the first one. So for
+            # example if we're booked for one exclusive job and one
+            # nonexclusive job, that's exactly one firm complaint.
+            $complaints->{firm} += $exclusive;
+            $complaints->{soft} += $nonexclusive > 1 ? $nonexclusive - 1 : 0;
+        }
+    }
+
+    # Now we do the petty thing, and look at all the turns taken.
+    # Omitting someone is a firm complaint. Receiving too many turns,
+    # or too short a break, is a soft complaint.
+    for my $job ( keys %{$turns} )
+    {
+        for my $worker ( keys %{ $turns->{$job} } )
+        {
+            my @indices = @{ $turns->{$job}{$worker} };
+            $complaints->{firm}++ if @indices == 0;
+            $complaints->{soft}++ if @indices > $benchmarks->{turns}{$job};
+
+            for my $i ( 1 .. $#indices )
+            {
+                my $break = $indices[$i] - $indices[ $i - 1 ];
+                $complaints->{soft}++ if $break < $benchmarks->{break}{$job};
+            }
+        }
+    }
+
+    return
+          $complaints->{hard} * $self->get_hard_cost
+        + $complaints->{firm} * $self->get_firm_cost
+        + $complaints->{soft} * $self->get_soft_cost;
+}
+
 1;    # End of Roster::Solver
 __END__
 
@@ -331,7 +535,45 @@ turn comes up again.
     my $foo = Roster::Solver->new();
     ...
 
-=head1 ATTRIBUTES
+=head1 SOLVER ATTRIBUTES
+
+=over
+
+=item firm_cost
+
+  $solver = Roster::Solver->new({ firm_cost => 1_000_000 });
+  $solver->set_firm_cost(1_000);
+  $firm_cost = $solver->get_firm_cost();
+
+The cost associated with each violation of firm constraints, like
+leaving someone completely off the schedule. This should be greater
+than C<soft_cost>, but less than C<hard_cost>. The default is
+1,000,000 (one million).
+
+=item hard_cost
+
+  $solver = Roster::Solver->new({ hard_cost => 1_000_000 });
+  $solver->set_hard_cost(1_000);
+  $hard_cost = $solver->get_hard_cost();
+
+The cost associated with each violation of hard constraints,
+like scheduling a worker on their day off. This should be
+I<very> high. Default is 1,000,000,000 (one billion).
+
+=item soft_cost
+
+  $solver = Roster::Solver->new({ soft_cost => 1_000_000 });
+  $solver->set_soft_cost(1_000);
+  $soft_cost = $solver->get_soft_cost();
+
+The cost associated with each violation of soft constraints,
+like scheduling a worker to do the same job twice in a row.
+This should be fairly low. The default is 1,000, but a value
+of 1 is probably just as good.
+
+=back
+
+=head1 PROBLEM ATTRIBUTES
 
 =over
 
@@ -355,6 +597,23 @@ people are available on which dates, I<and> which dates are allowed
 to schedule which people. The solver uses it as a lookup table
 when attempting to assign dates I<or> to find alternate people for
 changing the schedule on a given date.
+
+=item benchmarks
+
+  $benchmarks = $solver->get_benchmarks();
+
+The C<benchmarks> attribute is read-only: it's computed from the
+dates, workers, eligibility, etc., but ignoring days off. It's
+a hash giving the expected number of turns for each job, the
+expected break between doing the same job again, and a hash of
+the people expected to do the job at least once.
+
+The solver uses this to score a schedule by "lodging a complaint"
+if someone gets too many turns, too short a break, or if someone
+isn't scheduled to do the job at least once.
+
+Failure to include everyone is a "firm" constraint. The others are
+"soft" constraints.
 
 =item dates
 
