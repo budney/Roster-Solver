@@ -33,44 +33,47 @@ my $class = Module::Build->subclass( code => <<'EOF' );
 EOF
 
 my $builder = $class->new(
-    module_name         => 'Roster::Solver',
-    license             => 'gpl3',
-    dist_author         => q{Len Budney <len.budney@gmail.com>},
-    dist_version_from   => 'lib/Roster/Solver.pm',
-    release_status      => 'stable',
-    configure_requires  => {
+    module_name        => 'Roster::Solver',
+    license            => 'gpl3',
+    dist_author        => q{Len Budney <len.budney@gmail.com>},
+    dist_version_from  => 'lib/Roster/Solver.pm',
+    release_status     => 'stable',
+    configure_requires => {
         'Module::Build' => '0.4004',
         'perl'          => '5.10.0',
     },
     build_requires => {
-        'Data::Dumper'      => 0,
-        'Test::Exception'   => 0,
-        'Test::More'        => 0,
-        'Test::Trap'        => 0,
+        'Data::Dumper'    => 0,
+        'Test::Exception' => 0,
+        'Test::More'      => 0,
+        'Test::Trap'      => 0,
     },
     test_requires => {
-        'Data::Dumper'      => 0,
-        'Test::Exception'   => 0,
-        'Test::More'        => 0,
-        'Test::Requires'    => 0,
-        'perl'              => '5.10.0',
+        'Data::Dumper'    => 0,
+        'Test::Exception' => 0,
+        'Test::More'      => 0,
+        'Test::Requires'  => 0,
+        'perl'            => '5.10.0',
     },
     requires => {
-        'ntheory'       => 0,
-        'perl'          => '5.10.0',
-        'strict'        => 0,
-        'warnings'      => 0,
-        'CLI::Startup'  => '0.25',
-        'Class::Std'    => 0,
-        'Carp'          => 0,
-        'Clone'         => 0,
-        'Math::Round'   => 0,
-        'Readonly'      => 0,
+        'ntheory'        => 0,
+        'perl'           => '5.10.0',
+        'strict'         => 0,
+        'warnings'       => 0,
+        'CLI::Startup'   => '0.25',
+        'Class::Std'     => 0,
+        'Carp'           => 0,
+        'Clone'          => 0,
+        'List::Util'     => 0,
+        'Math::Counting' => 0,
+        'Math::Round'    => 0,
+        'Readonly'       => 0,
     },
-    add_to_cleanup     => [qw{
-        Roster-Solver-*
-        *.bak
-    }],
+    add_to_cleanup => [ qw{
+            Roster-Solver-*
+            *.bak
+            }
+    ],
     create_makefile_pl => 'traditional',
 );
 

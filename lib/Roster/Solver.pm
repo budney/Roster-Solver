@@ -4,9 +4,11 @@ use 5.006;
 use strict;
 use warnings;
 
-use Carp 'croak';
+use Carp qw{carp croak};
 use Clone 'clone';
 use Class::Std;
+use List::Util qw{min max};
+use Math::Counting qw{:big combination};
 use Math::Round;
 use ntheory ':rand';
 use Readonly;
@@ -140,8 +142,9 @@ sub get_benchmarks
 {
     my ($self) = @_;
 
-    my $eligible = $self->get_eligibility();
-    my @workers  = @{ $self->get_workers };
+    my $eligible   = $self->get_eligibility();
+    my @workers    = @{ $self->get_workers() };
+    my $head_count = $self->get_head_counts();
 
     # If they're cached, return 'em.
     if ( defined $benchmarks_of{ ident $self } )
@@ -160,14 +163,30 @@ sub get_benchmarks
         my @dates    = @{ $self->get_dates() };
         my @eligible = grep { $eligible->{jobs}{$job}{$_} } @workers;
 
+        # The percentage of dates on which I do job X is the percentage
+        # of teams that include me. For one-person teams that's easy,
+        # but for larger teams it takes a little extra calculation.
+        my $percent;
+
+        if ( $head_count->{$job} > 1 && @eligible > 1 )
+        {
+            $percent
+                = 1.0 * combination( @eligible - 1, $head_count->{$job} - 1 )
+                / combination( scalar(@eligible), $head_count->{$job} );
+        }
+        else
+        {
+            $percent = 1.0 / @eligible;
+        }
+
         # Note: if the number of workers doesn't divide evenly into
         # the number of dates, then the remainder might be the very
         # lowest value we can get for the satisfactoriness of a
         # schedule, because the people who get an extra turn might
         # be disgruntled.
         $benchmarks->{turns}{$job}
-            = round( scalar(@dates) / scalar(@eligible) );
-        $benchmarks->{break}{$job}  = scalar(@eligible);
+            = round( scalar(@dates) * $percent ) + 1;
+        $benchmarks->{break}{$job}  = round( 1 / $percent ) - 1;
         $benchmarks->{people}{$job} = { map { ( $_ => 1 ) } @eligible };
     }
 
@@ -381,7 +400,7 @@ sub _score_schedule : PRIVATE
     my $eligible     = $self->get_eligibility();
     my $is_exclusive = $self->get_exclusivity();
 
-    my $complaints = { hard => 0, firm => 0, soft => 0 };
+    my $complaints = { hard => {}, firm => {}, soft => {} };
     my @dates      = @{ $self->get_dates() };
     my $turns      = {};
 
@@ -400,7 +419,7 @@ sub _score_schedule : PRIVATE
     for my $i ( 0 .. $#dates )
     {
         my $date   = $dates[$i];
-        my %roster = %{ $schedule->{$date} };
+        my %roster = %{ clone( $schedule->{$date} ) };
 
         my $assignments = {};
 
@@ -412,7 +431,7 @@ sub _score_schedule : PRIVATE
             # a hard complaint.
             if ( @{ $roster{$job} } == 0 )
             {
-                $complaints->{hard}++;
+                $complaints->{hard}{$date}{$job}++;
             }
 
             for my $worker ( @{ $roster{$job} } )
@@ -427,19 +446,19 @@ sub _score_schedule : PRIVATE
                 # hard complaint.
                 if ( !$eligible->{jobs}{$job}{$worker} )
                 {
-                    $complaints->{hard}++;
+                    $complaints->{hard}{$date}{$job}++;
                 }
 
                 # If this is the assignee's day off, that's
                 # a hard complaint
                 if ( !$available->{dates}{$date}{$worker} )
                 {
-                    $complaints->{hard}++;
+                    $complaints->{hard}{$date}{$worker}++;
                 }
             }
         }
 
-        my ( $exclusive, $nonexclusive ) = 0, 0;
+        my ( @exclusive, @nonexclusive );
 
         # Now review the assignments for this date, looking
         # for double-assignments.
@@ -453,21 +472,29 @@ sub _score_schedule : PRIVATE
             {
                 if ( $is_exclusive->{$job} )
                 {
-                    $exclusive++;
+                    push @exclusive, $job;
                 }
                 else
                 {
-                    $nonexclusive++;
+                    push @nonexclusive, $job;
                 }
             }
 
             # If we're double-booked, then every exclusive job merits
-            # a firm complaint. In addition, we add a soft complaint
-            # for every nonexclusive job after the first one. So for
-            # example if we're booked for one exclusive job and one
-            # nonexclusive job, that's exactly one firm complaint.
-            $complaints->{firm} += $exclusive;
-            $complaints->{soft} += $nonexclusive > 1 ? $nonexclusive - 1 : 0;
+            # a firm complaint.
+            if (@exclusive)
+            {
+                # Complain about every nonexclusive job
+                $complaints->{firm}{$date}{$_}++ for @nonexclusive;
+
+                # Complain about all but the first exclusive job
+                shift @exclusive;
+                $complaints->{firm}{$date}{$_}++ for @exclusive;
+            }
+            else
+            {
+                # Should we lodge a mild complaint here?
+            }
         }
     }
 
@@ -479,21 +506,167 @@ sub _score_schedule : PRIVATE
         for my $worker ( keys %{ $turns->{$job} } )
         {
             my @indices = @{ $turns->{$job}{$worker} };
-            $complaints->{firm}++ if @indices == 0;
-            $complaints->{soft}++ if @indices > $benchmarks->{turns}{$job};
+            if ( @indices == 0 )
+            {
+                # This complaint has no date
+                $complaints->{firm}{''}{$job}++;
+            }
+            if ( @indices > $benchmarks->{turns}{$job} )
+            {
+                # Remove the first bunch of jobs, and complain
+                # about the rest.
+                splice @indices, 0, $benchmarks->{turns}{$job};
+                $complaints->{soft}{ $dates[$_] }{$job}++ for @indices;
+            }
 
             for my $i ( 1 .. $#indices )
             {
+                # Complain about each job that occurs after too
+                # short a break
                 my $break = $indices[$i] - $indices[ $i - 1 ];
-                $complaints->{soft}++ if $break < $benchmarks->{break}{$job};
+                $complaints->{soft}{ $dates[$i] }{$job}++
+                    if $break < $benchmarks->{break}{$job};
             }
         }
     }
 
-    return
-          $complaints->{hard} * $self->get_hard_cost
-        + $complaints->{firm} * $self->get_firm_cost
-        + $complaints->{soft} * $self->get_soft_cost;
+    my @trouble_spots;
+    my $score = 0;
+
+    my $cost = {
+        hard => $self->get_hard_cost,
+        firm => $self->get_firm_cost,
+        soft => $self->get_soft_cost,
+    };
+
+    # Now count up the score and also list the trouble spots
+    for my $type (qw{ hard firm soft })
+    {
+        for my $date ( keys %{ $complaints->{$type} } )
+        {
+            for my $job ( keys %{ $complaints->{$type}{$date} } )
+            {
+                my $points
+                    = $cost->{$type} * $complaints->{$type}{$date}{$job};
+                $score += $points;
+                next unless $date;
+
+                push @trouble_spots, [ $points, $date, $job ];
+            }
+        }
+    }
+
+    # Sort by descending score, but otherwise we don't care.
+    @trouble_spots = reverse sort { $a->[0] <=> $b->[0] } @trouble_spots;
+
+    return $score, \@trouble_spots;
+}
+
+# Mate two schedules using simple point crossover: pick a date,
+# and copy everything before that date from one schedule, and
+# everything after that date from the other schedule.
+sub _point_crossover
+{
+    my ( $self, $schedule1, $schedule2 ) = @_;
+
+    my $child = {};
+
+    my @dates = @{ $self->get_dates() };
+    my $point = int( rand( scalar(@dates) ) );
+
+    for my $i ( 0 .. $point - 1 )
+    {
+        $child->{ $dates[$i] } = clone( $schedule1->{ $dates[$i] } );
+    }
+
+    for my $i ( $point .. $#dates )
+    {
+        $child->{ $dates[$i] } = clone( $schedule2->{ $dates[$i] } );
+    }
+
+    return $child;
+}
+
+# Mate two schedules using uniform crossover: for each date,
+# decide randomly which parent to take it from.
+sub _uniform_crossover
+{
+    my ( $self, $schedule1, $schedule2 ) = @_;
+
+    my @parent = ( $schedule1, $schedule2 );
+    my $child  = {};
+    my @dates  = @{ $self->get_dates() };
+
+    for my $i ( 0 .. $#dates )
+    {
+        my $j = int( rand(2) );
+        $child->{ $dates[$i] } = clone( $parent[$j]->{ $dates[$i] } );
+    }
+
+    return $child;
+}
+
+# Point mutations focus on spots where there's a complaint,
+# just to speed things along.
+sub _point_mutation
+{
+    my ( $self, $node ) = @_;
+    my ( $score, $hotspots, $schedule ) = @{$node};
+
+    my @dates      = @{ $self->get_dates() };
+    my @jobs       = @{ $self->get_jobs() };
+    my @workers    = @{ $self->get_workers() };
+    my $head_count = $self->get_head_counts();
+    my $eligible   = $self->get_eligibility();
+    my $available  = $self->get_availability();
+
+    Readonly my $P_HOTSPOT => 0.80;
+
+    my ( $date, $job );
+
+    # Pick a point to mutate
+    if ( @{$hotspots} && rand() < $P_HOTSPOT )
+    {
+        my @candidates = map { int( rand( @{$hotspots} ) ) } 1 .. 3;
+        my $index      = min @candidates;
+        ( $date, $job ) = @{ $hotspots->[$index] }[ 1 .. 2 ];
+    }
+    else
+    {
+        my @jobs  = @{ $self->get_jobs };
+        my @dates = @{ $self->get_dates };
+
+        $date = $dates[ int( rand(@dates) ) ];
+        $job  = $jobs[ int( rand(@jobs) ) ];
+    }
+
+    # Now pick the replacement
+
+    # Find eligible, available people
+    my @list = grep { $available->{dates}{$date}{$_} }
+        grep { $eligible->{jobs}{$job}{$_} } @workers;
+
+    # Use the shortest list we can
+    if ( @list < $head_count->{$job} )
+    {
+        croak "Unable to fill roster for date: $date\n";
+    }
+
+    $schedule->{$date}{$job} = [];
+
+    # Pick head-count many workers
+    for ( 1 .. $head_count->{$job} )
+    {
+        my $i      = int( rand( scalar(@list) ) );
+        my $choice = splice @list, $i, 1;
+
+        push @{ $schedule->{$date}{$job} }, $choice;
+    }
+
+    # Recalculate score for the modified schedule.
+    ( $node->[0], $node->[1] ) = $self->_score_schedule($schedule);
+
+    return;
 }
 
 1;    # End of Roster::Solver

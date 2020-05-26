@@ -4,26 +4,28 @@ use ExtUtils::MakeMaker;
 WriteMakefile
 (
   'INSTALLDIRS' => 'site',
-  'PREREQ_PM' => {
-                   'Test::Exception' => 0,
-                   'Clone' => 0,
-                   'Carp' => 0,
-                   'Readonly' => 0,
-                   'warnings' => 0,
-                   'Test::More' => 0,
-                   'Class::Std' => 0,
-                   'Data::Dumper' => 0,
-                   'CLI::Startup' => '0.25',
-                   'strict' => 0,
-                   'Math::Round' => 0,
-                   'ntheory' => 0,
-                   'Test::Trap' => 0
-                 },
+  'NAME' => 'Roster::Solver',
   'EXE_FILES' => [
                    'bin/make-roster'
                  ],
   'VERSION_FROM' => 'lib/Roster/Solver.pm',
   'PL_FILES' => {},
-  'NAME' => 'Roster::Solver'
+  'PREREQ_PM' => {
+                   'CLI::Startup' => '0.25',
+                   'Carp' => 0,
+                   'Class::Std' => 0,
+                   'Clone' => 0,
+                   'Data::Dumper' => 0,
+                   'List::Util' => 0,
+                   'Math::Counting' => 0,
+                   'Math::Round' => 0,
+                   'Readonly' => 0,
+                   'Test::Exception' => 0,
+                   'Test::More' => 0,
+                   'Test::Trap' => 0,
+                   'ntheory' => 0,
+                   'strict' => 0,
+                   'warnings' => 0,
+                 },
 )
 ;
