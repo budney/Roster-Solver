@@ -9,26 +9,18 @@ use Data::Dumper;
 my $solver = Roster::Solver->new;
 
 # Accessors exist
-ok $solver->can('set_dates'),       "<dates> attribute has setter.";
-ok $solver->can('get_dates'),       "<dates> attribute has getter.";
-ok $solver->can('set_jobs'),        "<jobs> attribute has setter.";
-ok $solver->can('get_jobs'),        "<jobs> attribute has getter.";
-ok $solver->can('set_workers'),     "<workers> attribute has setter.";
-ok $solver->can('get_workers'),     "<workers> attribute has getter.";
-ok $solver->can('set_head_counts'), "<head_counts> attribute has setter.";
-ok $solver->can('get_head_counts'), "<head_counts> attribute has getter.";
-
-# Write-only attributes
+ok $solver->can('set_dates'),        "<dates> attribute has setter.";
+ok $solver->can('get_dates'),        "<dates> attribute has getter.";
+ok $solver->can('set_jobs'),         "<jobs> attribute has setter.";
+ok $solver->can('get_jobs'),         "<jobs> attribute has getter.";
+ok $solver->can('set_workers'),      "<workers> attribute has setter.";
+ok $solver->can('get_workers'),      "<workers> attribute has getter.";
+ok $solver->can('set_head_counts'),  "<head_counts> attribute has setter.";
+ok $solver->can('get_head_counts'),  "<head_counts> attribute has getter.";
 ok $solver->can('set_availability'), "<availability> attribute has setter.";
-ok $solver->can('get_availability'),
-    "<availability> attribute DOES HAVE a getter.";
-throws_ok { $solver->get_availability() } qr/Can't call private method/,
-    "...but calling get_availability() throws a runtime exception";
-ok $solver->can('set_eligibility'), "<eligibility> attribute has setter.";
-ok $solver->can('get_eligibility'),
-    "<eligibility> attribute DOES HAVE a getter.";
-throws_ok { $solver->get_eligibility() } qr/Can't call private method/,
-    "...but calling get_eligibility() throws a runtime exception";
+ok $solver->can('get_availability'), "<availability> attribute has a getter.";
+ok $solver->can('set_eligibility'),  "<eligibility> attribute has setter.";
+ok $solver->can('get_eligibility'),  "<eligibility> attribute has a getter.";
 
 # Basic validation
 throws_ok { $solver->set_dates } qr/called without array/,
@@ -85,5 +77,26 @@ lives_ok { $solver->set_workers(@list) } "set_workers() with array lives";
 is_deeply $solver->get_dates(),   [qw{a}], "dates attribute is correct";
 is_deeply $solver->get_jobs(),    [qw{a}], "jobs attribute is correct";
 is_deeply $solver->get_workers(), [qw{a}], "workers attribute is correct";
+
+# Immutability of hashref attributes
+my $hashref = { a => 1, b => 1 };
+lives_ok { $solver->set_head_counts($hashref) }
+"set_head_counts() with hashref lives";
+lives_ok { $solver->set_availability($hashref) }
+"set_availability() with hashref lives";
+lives_ok { $solver->set_eligibility($hashref) }
+"set_eligibility() with hashref lives";
+lives_ok { $solver->set_exclusivity($hashref) }
+"set_exclusivity() with hashref lives";
+$hashref->{b} = 2;
+$hashref->{c} = 3;
+is_deeply $solver->get_head_counts(), { a => 1, b => 1 },
+    "head_counts attribute is correct";
+is_deeply $solver->get_availability(), { a => 1, b => 1 },
+    "availability attribute is correct";
+is_deeply $solver->get_eligibility(), { a => 1, b => 1 },
+    "eligibility attribute is correct";
+is_deeply $solver->get_exclusivity(), { a => 1, b => 1 },
+    "exclusivity attribute is correct";
 
 done_testing();

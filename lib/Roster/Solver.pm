@@ -90,6 +90,25 @@ sub _set_array_attr : PRIVATE
     return;
 }
 
+# For getters, check whether the caller is inside
+# this package. If not, clone the attribute before
+# returning it, so the caller can't use it to change
+# our data.
+sub _get_clone
+{
+    my ( $self, $hashref ) = @_;
+    my $retval = $hashref->{ ident $self};
+
+    if ( (caller)[0] eq __PACKAGE__ )
+    {
+        return $retval;
+    }
+    else
+    {
+        return clone($retval);
+    }
+}
+
 # Set availability. This method expects a hashref
 # and saves a clone.
 sub set_availability
@@ -109,10 +128,10 @@ sub set_availability
 
 # Get availability. Returns a bare hashref, but
 # that's OK because it's private.
-sub get_availability : PRIVATE
+sub get_availability
 {
     my ($self) = @_;
-    return $availability_of{ ident $self };
+    return $self->_get_clone( \%availability_of );
 }
 
 # Get benchmarks. This is a read-only attribute,
@@ -194,10 +213,10 @@ sub set_eligibility
 
 # Get eligibility. Returns a bare hashref, but
 # that's OK because it's private.
-sub get_eligibility : PRIVATE
+sub get_eligibility
 {
     my ($self) = @_;
-    return $eligibility_of{ ident $self };
+    return $self->_get_clone( \%eligibility_of );
 }
 
 # Set exclusivity. Expects a hashref; saves a clone.
@@ -221,7 +240,7 @@ sub set_exclusivity
 sub get_exclusivity
 {
     my ($self) = @_;
-    return clone( $exclusivity_of{ ident $self } );
+    return $self->_get_clone( \%exclusivity_of );
 }
 
 # Set job head-counts. Expects a hashref; saves a clone.
@@ -245,7 +264,7 @@ sub set_head_counts
 sub get_head_counts
 {
     my ($self) = @_;
-    return clone( $head_counts_of{ ident $self } );
+    return $self->_get_clone( \%head_counts_of );
 }
 
 # Set jobs. If handed a reference, copy it so
@@ -261,7 +280,7 @@ sub set_jobs
 sub get_jobs
 {
     my ($self) = @_;
-    return clone( $jobs_of{ ident $self } );
+    return $self->_get_clone( \%jobs_of );
 }
 
 # Set workers. If handed a reference, copy it so
@@ -277,7 +296,7 @@ sub set_workers
 sub get_workers
 {
     my ($self) = @_;
-    return clone( $workers_of{ ident $self } );
+    return $self->_get_clone( \%workers_of );
 }
 
 # Solve the scheduling problem.
