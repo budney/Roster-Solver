@@ -36,6 +36,7 @@ my (
     %eligibility_of,
     %availability_of,
     %benchmarks_of,
+    %eligible_workers_of,
 ) : ATTRS;
 #>>>
 
@@ -228,6 +229,40 @@ sub set_eligibility
     $eligibility_of{ ident $self } = clone($hashref);
 
     return;
+}
+
+# Get a hash mapping each job to a list of
+# eligible workers. This is logically equivalent
+# to the eligibility attribute, but it only
+# contains eligible workers and it has them as
+# a sorted list rather than a hash.
+sub get_eligible_workers
+{
+    my ($self) = @_;
+
+    # We cache this data for performance
+    if ( defined $eligible_workers_of{ ident $self } )
+    {
+        return $eligible_workers_of{ ident $self };
+    }
+
+    my $eligibility = $self->get_eligibility();
+    return unless defined $eligibility;
+
+    my $eligible_workers;
+
+    for my $job ( keys %{ $eligibility->{jobs} } )
+    {
+        #<<< No perltidy
+        $eligible_workers->{$job} = [
+            sort
+            grep { $eligibility->{jobs}{$job}{$_} }
+            keys %{ $eligibility->{jobs}{$job} }
+        ];
+        #>>>
+    }
+
+    return $eligible_workers_of{ ident $self} = $eligible_workers;
 }
 
 # Get eligibility. Returns a bare hashref, but
