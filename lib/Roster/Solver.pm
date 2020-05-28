@@ -291,7 +291,7 @@ sub get_head_counts
 sub set_jobs
 {
     my ( $self, @args ) = @_;
-    return $self->_set_array_attr( \%jobs_of, @args );
+    return $self->_set_array_attr( \%jobs_of, sort @args );
 }
 
 # Return jobs, but copy the list so ours can't
@@ -307,7 +307,7 @@ sub get_jobs
 sub set_workers
 {
     my ( $self, @args ) = @_;
-    return $self->_set_array_attr( \%workers_of, @args );
+    return $self->_set_array_attr( \%workers_of, sort @args );
 }
 
 # Return workers, but copy the list so ours can't
@@ -812,10 +812,10 @@ Failure to include everyone is a "firm" constraint. The others are
   $solver->set_dates(qw{ 1/1 1/8 1/15 1/22 1/29 2/5 ... });
   $dates = $solver->get_dates();
 
-The dates for which we wish to schedule workers. These are
-just string labels; no effort is made to parse or validate
-them. So for example you could use names of holidays, or
-other meaningful designations, rather than actual dates.
+The dates for which we wish to schedule workers. These are just
+string labels; no effort is made to parse, validate, or sort them.
+So for example you could use names of holidays, or other meaningful
+designations, rather than actual dates.
 
 =item eligibility
 
@@ -868,14 +868,16 @@ cleanup.
   $jobs = $solver->get_jobs();
 
 The jobs to be assigned to workers. It's assumed that every job
-must be filled on every date.
+must be filled on every date. The list of jobs is stored in sorted
+order, regardless of the order it's provided in.
 
 =item workers
 
   $solver->set_dates(qw{ Alice Bob Harry Gwen ... });
   $workers = $solver->get_workers();
 
-The people available to be added to the roster.
+The people available to be added to the roster. The list of workers
+is stored in sorted order, regardless of the order it's provided in.
 
 =back
 
