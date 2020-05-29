@@ -33,7 +33,7 @@ my $app = Roster::Solver::App->new;
 }
 {
     # All three: --jobs, --workers, --dates
-    trap { $app->run(qw{ --jobs j --workers w --dates d }) };
+    trap { $app->run(qw{ --jobs j --workers w --dates d --eligibility w=1 }) };
     is $trap->stdout, '',
         'No output when --jobs, --workers, --dates all supplied';
     is $trap->stderr, '',
@@ -51,7 +51,12 @@ my $app = Roster::Solver::App->new;
 {
     my $app = Roster::Solver::App->new;
 
-    trap { $app->run(qw{ --jobs j --workers w,v --dates d --days-off w=1 }) };
+    trap
+    {
+        $app->run(
+            qw{ --jobs j --workers w,v --dates d --eligibility w=1,v=1 --days-off w=1 }
+        )
+    };
     is $trap->stdout, '',
         'No output for --jobs, --workers, --dates, --days-off';
     is $trap->stderr, '',
@@ -66,7 +71,9 @@ my $app = Roster::Solver::App->new;
 
     throws_ok
     {
-        $app->run(qw{ --jobs j --workers w --dates d --days-off w=1 })
+        $app->run(
+            qw{ --jobs j --workers w --dates d --eligibility w=1 --days-off w=1 }
+        )
     }
     qr/unable to fill roster/i,
         "Throws an exception when schedule is unsatisfiable for some date";
@@ -77,7 +84,10 @@ my $app = Roster::Solver::App->new;
 {
     my $app = Roster::Solver::App->new;
 
-    trap { $app->run(qw{ --jobs j,k --workers w --dates d }) };
+    trap
+    {
+        $app->run(qw{ --jobs j,k --workers w --dates d --eligibility w=11 })
+    };
     is $trap->stdout, '', 'No output for case of one worker doing two jobs';
     is $trap->stderr, '', 'No errors for case of one worker doing two jobs';
     is $trap->exit,   0,  "Exit code was 0";
@@ -89,7 +99,12 @@ my $app = Roster::Solver::App->new;
 {
     my $app = Roster::Solver::App->new;
 
-    trap { $app->run(qw{ --jobs j --workers v,w --dates d --job-counts 2 }) };
+    trap
+    {
+        $app->run(
+            qw{ --jobs j --workers v,w --dates d --eligibility v=1,w=1 --job-counts 2 }
+        )
+    };
     is $trap->stdout, '', 'No output for case of two workers doing one job';
     is $trap->stderr, '', 'No errors for case of two workers doing one job';
     is $trap->exit,   0,  "Exit code was 0";
@@ -103,7 +118,9 @@ my $app = Roster::Solver::App->new;
 
     trap
     {
-        $app->run(qw{ --jobs j,k --workers u,v,w --dates d --job-counts 2 })
+        $app->run(
+            qw{ --jobs j,k --workers u,v,w --dates d --eligibility u=11,v=11,w=11 --job-counts 2 }
+        )
     };
     is $trap->stdout, '',
         'No output for case of three workers doing two jobs';
@@ -121,7 +138,11 @@ my $app = Roster::Solver::App->new;
     package Roster::Solver::App;
     use Test::Exception;
 
-    lives_ok { $app->_process_options(qw{ --jobs j --workers w --dates d }) }
+    lives_ok
+    {
+        $app->_process_options(
+            qw{ --jobs j --workers w --dates d --eligibility w=1 })
+    }
     '_process_options() lives for one worker, job, and date';
 
     lives_ok { $main::solver = $app->_setup_solver() }
@@ -136,8 +157,9 @@ my $app = Roster::Solver::App->new;
 
     is_deeply $main::schedule, { d => { j => ['w'] } }, "Schedule is correct";
 
-    lives_ok {
-        $main::score = $main::solver->_score_schedule($main::schedule)
+    lives_ok
+    {
+        ($main::score) = $main::solver->_score_schedule($main::schedule)
     }
     '_score_schedule() lives';
     is $main::score, 0, 'Schedule scored 0 complaints';

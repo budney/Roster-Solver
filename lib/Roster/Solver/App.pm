@@ -121,7 +121,7 @@ sub _eligibility : PRIVATE
         columns => 'jobs',
         rows    => 'workers',
         bitmask => 'eligibility',
-        default => 1,
+        default => 0,
     } );
 }
 
@@ -200,7 +200,7 @@ sub _head_count
 {
     my ($self) = @_;
     return $self->_job_flags( {
-        flag    => 'job-count',
+        flag    => 'job-counts',
         default => 1,
     } );
 }
@@ -227,7 +227,7 @@ sub _job_flags
     return \%result;
 }
 
-1;    # End of Email::Fingerprint
+1;    # End of Roster::Solver::App
 __END__
 
 =head1 NAME
