@@ -58,4 +58,54 @@ is ref $gene->get_problem(), ref $solver,
 throws_ok { $gene->set_problem( {} ) } qr/called more than once/,
     "set_problem() throws exception when called a second time";
 
+# Construct a problem and genome by hand
+lives_ok {
+  $solver  = Roster::Solver->new();
+  $solver->set_jobs(qw{ cooking dishes trash });
+  $solver->set_workers(qw{ Alice Bob Harry Gwen });
+  $solver->set_dates(qw{ 1/1 1/2 1/3 1/4 1/5 1/6 1/7 });
+
+  $gene = Roster::Solver::Genetic::Genome->new({ problem => $solver });
+}
+"Initializing a new problem and genome lives";
+
+# Test private methods for parsing the genome.
+{
+    package Roster::Solver::Genetic::Genome;
+
+    use Test::More;
+
+    $length = $main::gene->get_length();
+    is $length, 27, "genome has correct length";
+
+    $main::gene->set_hex(
+        '000' . '0'x6 .
+        '111' . '0'x6 .
+        '220' . '0'x6
+    );
+    is $main::gene->get_hex(), '000000000111000000220000000', 'genome is correct';
+
+    $parsed = [
+      { job => 'cooking',
+        rotation => [ [ 0, 1, 2, 3, ] ],
+        expanded => [ [ qw{ Alice Bob Gwen Harry Alice Bob Gwen } ] ],
+        trades   => [ [ 0, 1, 2, 3, 4, 5, 6 ] ],
+        offsets  => [ 0 ],
+      },
+      { job => 'dishes',
+        rotation => [ [ 1, 2, 3, 0, ] ],
+        expanded => [ [ qw{ Bob Gwen Harry Alice Bob Gwen Harry } ] ],
+        trades   => [ [ 0, 1, 2, 3, 4, 5, 6 ] ],
+        offsets  => [ 0 ],
+      },
+      { job => 'trash',
+        rotation => [ [ 2, 3, 0, 1, ] ],
+        expanded => [ [ qw{ Gwen Harry Alice Bob Gwen Harry Alice } ] ],
+        trades   => [ [ 0, 1, 2, 3, 4, 5, 6 ] ],
+        offsets  => [ 0 ],
+      },
+    ];
+    is_deeply $main::gene->_parse_genome(), $parsed, "genome parses correctly";
+}
+
 done_testing();
