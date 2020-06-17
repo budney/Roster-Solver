@@ -3,12 +3,12 @@ require 5.010000;
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-  'INSTALLDIRS' => 'site',
   'NAME' => 'Roster::Solver',
+  'VERSION_FROM' => 'lib/Roster/Solver.pm',
+  'INSTALLDIRS' => 'site',
   'EXE_FILES' => [
                    'bin/make-roster'
                  ],
-  'VERSION_FROM' => 'lib/Roster/Solver.pm',
   'PL_FILES' => {},
   'PREREQ_PM' => {
                    'CLI::Startup' => '0.25',
@@ -20,6 +20,7 @@ WriteMakefile
                    'Math::Counting' => 0,
                    'Math::Round' => 0,
                    'Readonly' => 0,
+                   'Scalar::Util' => 0,
                    'Test::Exception' => 0,
                    'Test::More' => 0,
                    'Test::Trap' => 0,

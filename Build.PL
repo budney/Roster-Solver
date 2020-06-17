@@ -68,6 +68,7 @@ my $builder = $class->new(
         'Math::Counting' => 0,
         'Math::Round'    => 0,
         'Readonly'       => 0,
+        'Scalar::Util'   => 0,
     },
     add_to_cleanup => [ qw{
             Roster-Solver-*
