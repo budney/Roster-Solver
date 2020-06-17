@@ -228,6 +228,70 @@ sub _decode_hex
     return \@permutation;
 }
 
+# Find all collisions between two rotations (i.e., permuted lists of
+# workers) by running them both side-by-side.
+sub _find_all_collisions
+{
+    my ( $self, $group1, $group2 ) = @_;
+
+    my $days = scalar( @{ $self->get_days() // [] } );
+    my ( $m, $n ) = ( scalar( @{$group1} ), scalar( @{$group2} ) );
+
+    # Preserve assumption that $m <= $n
+    if ( $m > $n )
+    {
+        ( $m,      $n )      = ( $n,      $m );
+        ( $group1, $group2 ) = ( $group2, $group1 );
+    }
+
+    my $lcm = $self->_lcm( scalar( @{$group1} ), scalar( @{$group2} ) );
+    my @hits;
+
+    # Now step through the two lists finding all collisions
+    for my $i ( 0 .. min $lcm - 1, $days - 1 )
+    {
+        push @hits, ( $group1->[ $i % $m ] eq $group2->[ $i % $n ] ? 1 : 0 );
+    }
+
+    # Extend this array to contain $days elements, and return the
+    # result as a reference.
+    return $self->_extend( \@hits, $days );
+}
+
+# Extend the given list to the given length. If the list is
+# already longer, return a truncated copy.
+sub _extend
+{
+    my ( $self, $list, $new_length ) = @_;
+
+    # We can't extend the empty list
+    return unless ref $list eq 'ARRAY';
+
+    my @new_list = @{$list};
+    my $length   = scalar(@new_list);
+
+    if ( $new_length <= $length )
+    {
+        # Truncate at element $new_length-1
+        splice @new_list, $new_length;
+    }
+    else
+    {
+        # $length < $new_length, so by the division theorem we know
+        # $new_length = n * $length + m for some m and n.
+        my $n = int( $new_length / $length );
+        my $m = $new_length % $length;
+
+        # Replicate the list $n times
+        @new_list = (@new_list) x $n;
+
+        # Copy the first $m items to the end of the list
+        push @new_list, @new_list[ 0 .. ( $m - 1 ) ];
+    }
+
+    return \@new_list;
+}
+
 # Encode a permuted set of integers, assumed to be
 # exactly the first N integers in some order.
 sub _encode_permutation
@@ -548,6 +612,38 @@ the "digits" of the Lehman code are actually C<$self->get_digits()>
 long, so the string isn't a perfect representation of the factorial-base
 number denoting this permutation unless C<$self->get_digits()>
 equals 1.
+
+=head2 _extend
+
+  $short = [1, 2, 3];
+  $long  = $self->_extend($short, 5);
+  # Returns [1, 2, 3, 1, 2]
+
+Accepts an array reference and a length, and returns a reference
+to a new array made by duplicating the original array as many
+times as necessary, and then truncating to the desired length.
+
+It's used, for example, to take a rotation of workers and extend
+it to a schedule of any desired length.
+
+=head2 _find_all_collisions
+
+  $rota1 = [1, 2, 3];
+  $rota1 = [2, 3];
+
+  # Assuming there are 10 dates to be scheduled:
+  # 1 2 3 1 2 3 1 2 3 1
+  # 2 3 2 3 2 3 2 3 2 3
+  #         * *
+  $self->_find_all_collisions();
+  # Returns [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
+
+Takes two permuted arrays of scalars, and finds all pairwise
+collisions between them. It does this by logically extending both
+lists to the LCM of their lengths, checking for collisions, and
+then extending the list of 0's (no collision) and 1's (collision)
+out to the length of the schedule. It returns this array as a
+reference.
 
 =head2 _gcd
 
