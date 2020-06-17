@@ -45,6 +45,7 @@ for my $attr (qw{ dates digits head_counts jobs workers })
 # Attribute values
 is_deeply $gene->get_dates(), [qw{d}], "dates are correct";
 is $gene->get_digits(), 1, "number of digits is correct";
+is $gene->get_length(), 5, "length of genome is correct";
 is_deeply $gene->get_head_counts(), { j => 2, k => 1 },
     "head counts are correct";
 is_deeply $gene->get_jobs(),    [qw{j k}],     "jobs are correct";

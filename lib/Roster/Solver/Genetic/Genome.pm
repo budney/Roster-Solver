@@ -23,11 +23,18 @@ our $VERSION = '0.01';
 #Readonly my $SUB       => 3;               # Returned from caller()
 
 #<<< Leave this alone, perltidy
+# Attributes:
+
 # The problem we're solving.
 my %problem_of :ATTR( :init_arg<problem> :get<problem> :default<undef> );
-# The DNA representation of this schedule, as a hex string.
-my %hex_of :ATTR( :get<hex> );
-#>>>
+
+# The number of hex digits per codon
+my %digits_of :ATTR( :get<digits> );
+
+# The length of the complete genome
+my %length_of :ATTR( :get<length> );
+
+#>>> End perltidy
 
 # Constructor stuff:
 sub BUILD
@@ -87,10 +94,75 @@ sub set_problem
         croak 'set_problem() called more than once';
     }
 
-    $problem_of{ident $self} = $problem;
-    weaken($problem_of{ident $self});
+    # Save the problem using a weak reference
+    $problem_of{ ident $self} = $problem;
+    weaken( $problem_of{ ident $self} );
+
+    # Also, decide now how many hex digits we need
+    # for one codon. We overestimate by looking at
+    # the total number of workers, rather than the
+    # number eligible for each job. For medium size
+    # problems that's fine. You might save a few bytes
+    # if you have an enormous, specialized, workforce.
+    my $largest_section = max
+        scalar( @{ $problem->get_dates() } ),
+        scalar( @{ $problem->get_jobs() } ),
+        scalar( @{ $problem->get_workers() } );
+
+    # The order of the next two steps is important. _genome_length()
+    # references $digits_of{ident self}.
+    $digits_of{ ident $self} = length( sprintf '%X', $largest_section );
+    $length_of{ ident $self} = $self->_genome_length();
 
     return;
+}
+
+# Calculate the length of the full genome, based on the
+# problem to be solved. I.e., permutations of eligible
+# workers for each job.
+sub _genome_length : PRIVATE
+{
+    my ($self) = @_;
+
+    # Can't be done without a problem specified
+    my $problem = $self->get_problem();
+    return unless defined $problem;
+
+    # Get the canonical list of jobs, and the
+    # list of eligible workers, along with dates
+    # and head counts.
+    my $dates   = $self->get_dates();
+    my $jobs    = $self->get_jobs();
+    my $workers = $problem->get_eligible_workers();
+    my $count   = $problem->get_head_counts();
+
+    # Keep count of the logical digits, ignoring the
+    # number of hex digits require to represent each one.
+    my $places = 0;
+
+    # Step through the jobs
+    for my $job ( @{$jobs} )
+    {
+        # A permutation of workers has length 1 less
+        # than the number of workers
+        $places += scalar( @{ $workers->{$job} } ) - 1;
+
+        # In addition, if the job requires more than 1
+        # worker, we find the other workers by using the
+        # same rotation shifted by some number.
+        $places += $count->{$job} - 1;
+
+        # Finally, for each worker for each job, there's
+        # a permutation of dates that represents trades
+        # between two workers -- i.e., to resolve a schedule
+        # conflict.
+        $places += $count->{$job} * ( scalar( @{$dates} ) - 1 );
+    }
+
+    # Return the computed result. This result will be cached
+    # by set_problem(), and thereafter can be retrieved using
+    # get_length().
+    return $places * $self->get_digits();
 }
 
 # Return workers. This is delegated to the problem object.
@@ -160,6 +232,26 @@ The list of jobs to be done. This is a read-only "attribute"
 gotten by interrogating the C<Roster::Solver> in this genome's
 C<problem> attribute.
 
+=item length
+
+  $solver  = Roster::Solver->new();
+  $gene    = Roster::Solver::Genetic::Genome->new({ problem = $solver });
+  $length  = $gene->get_length();
+
+The length of the full genome in bytes. The genome is a hex string
+that uses C<$gene->get_digits()> bytes to represent each "digit" of
+multiple permutations. Taking each job in sorted order, we represent:
+
+=over
+
+=item A permutation of all workers eligible for that job.
+
+=item For each worker required more than one, an offset into that permutation.
+
+=item A permutation of all dates on the roster, representing "trades" by workers with conflicts.
+
+=back
+
 =item problem
 
   $solver = Roster::Solver->new();
@@ -200,7 +292,33 @@ object in this genome's C<problem> attribute.
 
 C<BUILD()> is called automatically by the C<Class::Std> framework
 when a new genome object is constructed. It just converts the
-C<problem> initializer, if any, to a weak reference.
+C<problem> initializer, if any, to a weak reference. It also computes
+and caches the number of digits needed for a single codon.
+
+=head2 _genome_length
+
+  $solver  = Roster::Solver->new();
+  $gene    = Roster::Solver::Genetic::Genome->new({ problem = $solver });
+  $bytes   = $gene->_genome_length();
+
+Compute the length of the full genome, given the problem to be
+solved. The genome encodes a rotation for each job, AND a permutation
+of dates for each spot in the head count. The rotation determines
+the basic schedule, and the permuted dates represent "swaps" by
+workers who can't (or don't want to) work their regularly scheduled
+days.
+
+Remember that a permutation of N items is represented as a factoradic
+number with N-1 digits, I<BUT> the leftmost digit can be anything
+between 0 and N-1. We represent this digit in hexadecimal, which
+requires multiple bytes if N>15. For simplicity, we find the largest
+such number, and then use that many bytes for every digit in the
+genome.
+
+In other words, a hexadecimal digit isn't the same thing as a digit
+in the factoradic representations of the permutations, and if that's
+confusing you should probably avoid trying to parse the encoded genome
+yourself.
 
 =head1 AUTHOR
 
