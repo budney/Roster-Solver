@@ -235,7 +235,30 @@ sub set_eligibility
 sub get_eligibility
 {
     my ($self) = @_;
-    return $self->_get_clone( \%eligibility_of );
+
+    my $eligibility = $self->_get_clone( \%eligibility_of );
+    return $eligibility if defined $eligibility;
+
+    # Since eligibility was never initialized, let's set a reasonable
+    # default: everyone can do every job.
+    my $workers = $self->get_workers();
+    my $jobs    = $self->get_jobs();
+
+    return unless defined $workers and defined $jobs;
+
+    $eligibility = {};
+
+    for my $job ( @{$jobs} )
+    {
+        for my $worker ( @{$workers} )
+        {
+            $eligibility->{people}{$worker}{$job} = 1;
+            $eligibility->{jobs}{$job}{$worker}   = 1;
+        }
+    }
+
+    $self->set_eligibility($eligibility);
+    return $self->get_eligibility();
 }
 
 # Set exclusivity. Expects a hashref; saves a clone.
@@ -283,7 +306,24 @@ sub set_head_counts
 sub get_head_counts
 {
     my ($self) = @_;
-    return $self->_get_clone( \%head_counts_of );
+
+    my $head_counts = $self->_get_clone( \%head_counts_of );
+    return $head_counts if defined $head_counts;
+
+    # Since this attribute was never initialized, we go ahead and
+    # set it to a reasonable default: every job requires one worker.
+    my $jobs = $self->get_jobs();
+    return unless defined $jobs;
+
+    $head_counts = {};
+
+    for my $job (@{ $jobs })
+    {
+        $head_counts->{$job} = 1;
+    }
+
+    $self->set_head_counts($head_counts);
+    return $self->get_head_counts();
 }
 
 # Set jobs. If handed a reference, copy it so
